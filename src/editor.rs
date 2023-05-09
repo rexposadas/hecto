@@ -52,7 +52,7 @@ impl Editor {
         Ok(())
     }
     fn draw_rows(&self) {
-        for _ in 0..self.terminal.size().height {
+        for _ in 0..self.terminal.size().height - 1 {
             println!("~\r");
         }
     }
