@@ -34,6 +34,7 @@ impl Terminal {
     pub fn clear_screen() {
         print!("{}", termion::clear::All);
     }
+
     pub fn cursor_position(x: u16, y: u16) {
         let x = x.saturating_add(1);
         let y = y.saturating_add(1);
@@ -48,5 +49,17 @@ impl Terminal {
                 return key;
             }
         }
+    }
+
+    pub fn cursor_hide() {
+        print!("{}", termion::cursor::Hide);
+    }
+
+    pub fn cursor_show() {
+        print!("{}", termion::cursor::Show);
+    }
+
+    pub fn clear_current_line() {
+        print!("{}", termion::clear::CurrentLine);
     }
 }

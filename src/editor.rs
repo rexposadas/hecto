@@ -9,13 +9,19 @@ pub struct Editor {
 }
 
 impl Editor {
+
+    // Called in main to start the editor. Whil this is alive,
+    // we are inside the editor.
     pub fn run(&mut self) {
         let _stdout = stdout().into_raw_mode().unwrap();
 
+        // keeps the editor running until we quit.
         loop {
             if let Err(error) = self.refresh_screen() {
                 die(error);
             }
+
+            // Set when we press Ctrl+Q.
             if self.should_quit {
                 break;
             }
@@ -24,6 +30,9 @@ impl Editor {
             }
         }
     }
+
+    // Instantiated in main to get a handle to the editor. then we call
+    // run().
     pub fn default() -> Self {
         Self {
             should_quit: false,
@@ -32,15 +41,17 @@ impl Editor {
     }
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
-        print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
+        Terminal::cursor_hide();
         Terminal::clear_screen();
         Terminal::cursor_position(0, 0);
         if self.should_quit {
-            println!("Goodbye.\r");
+            Terminal::clear_screen();
+            println!("Keep planting.\r");
         } else {
             self.draw_rows();
             Terminal::cursor_position(0, 0);
         }
+        Terminal::cursor_show();
         Terminal::flush()
     }
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
@@ -53,6 +64,7 @@ impl Editor {
     }
     fn draw_rows(&self) {
         for _ in 0..self.terminal.size().height - 1 {
+            Terminal::clear_current_line();
             println!("~\r");
         }
     }
