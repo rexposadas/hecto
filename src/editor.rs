@@ -16,6 +16,8 @@ pub struct Editor {
     // keep track of the cursor position in *our current document*, which
     // is different from the terminal.
     cursor_position: Position,
+
+    offset: Position,
     document: Document,
 }
 
@@ -55,7 +57,7 @@ impl Editor {
     pub fn default() -> Self {
         let args: Vec<String> = std::env::args().collect();
         let document = if args.len() > 1 {
-            let file_name = &args[1];
+            let file_name = &args[1]; // args[0] is the name of the program.
             Document::open(&file_name).unwrap_or_default()
         } else {
             Document::default()
@@ -67,6 +69,7 @@ impl Editor {
             terminal: Terminal::default().expect("Failed to initialize terminal"),
             document,
             cursor_position: Position::default(),
+            offset: Position::default(),
         }
     }
 
@@ -97,13 +100,33 @@ impl Editor {
             | Key::Home => self.move_cursor(pressed_key),
             _ => (),
         }
+        self.scroll();
         Ok(())
     }
+
+    fn scroll(&mut self){
+        let Position {x, y} = self.cursor_position;
+        let width = self.terminal.size().width as usize;
+        let height = self.terminal.size().height as usize;
+
+        let mut offset = &mut self.offset;
+        if y < offset.y {
+            offset.y = y;
+        } else if y >= offset.y.saturating_add(height){
+            offset.y = y.saturating_sub(height).saturating_add(1);
+        }
+        if x < offset.x {
+            offset.x = x;
+        } else if x >= offset.x.saturating_add(width){
+            offset.x = x.saturating_sub(width).saturating_add(1);
+        }
+    }
+
 
     fn move_cursor(&mut self, key: Key){
         let Position { mut y, mut x } = self.cursor_position;
         let size = self.terminal.size();
-        let height = size.height.saturating_sub(1) as usize;
+        let height = self.document.len();
         let width = size.width.saturating_sub(1) as usize;
         match key {
             Key::Up => y = y.saturating_sub(1),
@@ -140,8 +163,11 @@ impl Editor {
     }
 
     pub fn draw_row(&self, row:&Row){
-        let start = 0;
-        let end = self.terminal.size().width as usize;
+        let width = self.terminal.size().width as usize;
+        let start = self.offset.x;
+        let end = self.offset.x + width;
+
+
         let row = row.render(start, end);
         println!("{}\r", row);
     }
@@ -151,7 +177,7 @@ impl Editor {
         let height = self.terminal.size().height;
         for terminal_row in 0..height-1  {
             Terminal::clear_current_line();
-            if let Some(row) = self.document.row(terminal_row as usize){
+            if let Some(row) = self.document.row(terminal_row as usize + self.offset.y){
                 self.draw_row(row);
             } else if self.document.is_empty() && terminal_row == height / 3 {
                 self.draw_welcome_message();
