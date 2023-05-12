@@ -1,9 +1,13 @@
 mod terminal;
 mod editor;
+mod row;
+mod document;
 
+pub use document::Document;
 use editor::Editor;
 pub use terminal::Terminal;
 pub use editor::Position;
+pub use row::Row;
 
 fn main() {
 

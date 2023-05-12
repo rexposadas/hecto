@@ -1,4 +1,7 @@
+use crate::Document;
 use crate::Terminal;
+use crate::Row;
+
 use std::io::{self, stdout};
 use termion::event::Key;
 use termion::raw::IntoRawMode;
@@ -13,9 +16,10 @@ pub struct Editor {
     // keep track of the cursor position in *our current document*, which
     // is different from the terminal.
     cursor_position: Position,
-
+    document: Document,
 }
 
+#[derive(Default)]
 pub struct Position {
     // and not u16 because that's too small. we want to take into account large documents.
     // usize depends on the machine's architecture.
@@ -49,17 +53,27 @@ impl Editor {
     // Instantiated in main to get a handle to the editor. then we call
     // run().
     pub fn default() -> Self {
+        let args: Vec<String> = std::env::args().collect();
+        let document = if args.len() > 1 {
+            let file_name = &args[1];
+            Document::open(&file_name).unwrap_or_default()
+        } else {
+            Document::default()
+        };
+
+
         Self {
             should_quit: false,
             terminal: Terminal::default().expect("Failed to initialize terminal"),
-            cursor_position: Position { x: 0, y: 0 },
+            document,
+            cursor_position: Position::default(),
         }
     }
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::cursor_hide();
         Terminal::clear_screen();
-        Terminal::cursor_position(&Position { x: 0, y: 0 });
+        Terminal::cursor_position(&Position::default());
         if self.should_quit {
             Terminal::clear_screen();
             println!("Keep planting.\r");
@@ -125,12 +139,21 @@ impl Editor {
         println!("{}\r", welcome_message);
     }
 
+    pub fn draw_row(&self, row:&Row){
+        let start = 0;
+        let end = self.terminal.size().width as usize;
+        let row = row.render(start, end);
+        println!("{}\r", row);
+    }
+
 
     fn draw_rows(&self) {
         let height = self.terminal.size().height;
-        for row in 0..height-1  {
+        for terminal_row in 0..height-1  {
             Terminal::clear_current_line();
-            if row == height / 3 {
+            if let Some(row) = self.document.row(terminal_row as usize){
+                self.draw_row(row);
+            } else if self.document.is_empty() && terminal_row == height / 3 {
                 self.draw_welcome_message();
             } else {
                 println!("~\r");
