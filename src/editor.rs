@@ -136,6 +136,7 @@ impl Editor {
         } else {
             0
         };
+
         match key {
             Key::Up => y = y.saturating_sub(1),
             Key::Down =>
@@ -144,10 +145,24 @@ impl Editor {
                         y = y.saturating_add(1)
                     }
                 },
-            Key::Left => x = x.saturating_sub(1),
+            Key::Left => {
+                if x > 0{
+                    x -= 1;
+                } else if y > 0 {
+                    y -= 1;
+                    if let Some(row) = self.document.row(y) {
+                        x = row.len();
+                    } else {
+                        x = 0;
+                    }
+                }
+            },
             Key::Right => {
              if x < width {
-                 x = x.saturating_add(1)
+              x += 1;
+             } else if y < height {
+              y += 1;
+              x = 0;
              }
             },
             Key::PageUp => {
@@ -194,8 +209,6 @@ impl Editor {
         let width = self.terminal.size().width as usize;
         let start = self.offset.x;
         let end = self.offset.x + width;
-
-
         let row = row.render(start, end);
         println!("{}\r", row);
     }
