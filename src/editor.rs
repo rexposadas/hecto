@@ -8,6 +8,19 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
+
+    // This is here, and not the Terminal struct, because we want to
+    // keep track of the cursor position in *our current document*, which
+    // is different from the terminal.
+    cursor_position: Position,
+
+}
+
+pub struct Position {
+    // and not u16 because that's too small. we want to take into account large documents.
+    // usize depends on the machine's architecture.
+    pub x: usize,
+    pub y: usize,
 }
 
 impl Editor {
@@ -39,19 +52,20 @@ impl Editor {
         Self {
             should_quit: false,
             terminal: Terminal::default().expect("Failed to initialize terminal"),
+            cursor_position: Position { x: 0, y: 0 },
         }
     }
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::cursor_hide();
         Terminal::clear_screen();
-        Terminal::cursor_position(0, 0);
+        Terminal::cursor_position(&Position { x: 0, y: 0 });
         if self.should_quit {
             Terminal::clear_screen();
             println!("Keep planting.\r");
         } else {
             self.draw_rows();
-            Terminal::cursor_position(0, 0);
+            Terminal::cursor_position(&self.cursor_position);
         }
         Terminal::cursor_show();
         Terminal::flush()
@@ -60,9 +74,22 @@ impl Editor {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
+            Key::Up | Key::Down | Key::Left | Key::Right => self.move_cursor(pressed_key),
             _ => (),
         }
         Ok(())
+    }
+
+    fn move_cursor(&mut self, key: Key){
+        let Position { mut y, mut x } = self.cursor_position;
+        match key {
+            Key::Up => y = y.saturating_sub(1),
+            Key::Down => y = y.saturating_add(1),
+            Key::Left => x = x.saturating_sub(1),
+            Key::Right => x = x.saturating_add(1),
+            _ => (),
+        }
+        self.cursor_position = Position { x, y };
     }
 
     fn draw_welcome_message(&self){
